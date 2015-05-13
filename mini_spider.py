@@ -10,7 +10,7 @@ import random
 
 class MiniSpider():
 
-    def __init__(self, config):
+    def __init__(self, config, seed):
         log.init_log('./log/MiniSpider')
 
         cp = ConfigParser.ConfigParser()
@@ -22,13 +22,14 @@ class MiniSpider():
             self.conf_dic[key].pop('__name__',None)
 
         urllib2.socket.setdefaulttimeout(float(self.conf_dic['spider']['crawl_timeout']))
+        #self.seed = seed
+        self.seed = ["http://pycm.baidu.com:8081"]*1000
         logging.info("init")
 
     def run(self):
         #self.pool = Pool(processes=8)
         self.pool = threadpool.ThreadPool(int(self.conf_dic['spider']['thread_count']))
-        data = [random.randint(1,10) for i in range(20)]
-        requests = threadpool.makeRequests(self.crawl, ["http://www.baidu.com","http://weibo.com"], self.print_result, self.handle_exception)
+        requests = threadpool.makeRequests(self.crawl, self.seed, self.print_result, self.handle_exception)
 
         for req in requests:
             self.pool.putRequest(req)
@@ -36,7 +37,7 @@ class MiniSpider():
 
         while True:
             try:
-                time.sleep(int(self.conf_dic['spider']['crawl_interval']))
+                # time.sleep(int(self.conf_dic['spider']['crawl_interval'])*10)
                 self.pool.poll()
             except KeyboardInterrupt:
                 print "**** Interrupted!"
@@ -46,22 +47,16 @@ class MiniSpider():
                 break
 
     def crawl(self, url):
+        time.sleep(int(self.conf_dic['spider']['crawl_interval']))
         page = urllib2.urlopen(url)
         chunk = page.read()
+        print page.info().getparam('charset')
         # print chunk
         return chunk
 
     # this will be called each time a result is available
     def print_result(self, request, result):
         print "**** Result from request #%s: %r" % (request.requestID, result)
-
-    def do_something(self,data):
-        time.sleep(random.randint(1,5))
-        result = round(random.random() * data, 5)
-        # just to show off, we throw an exception once in a while
-        if result > 5:
-            raise RuntimeError("Something extraordinary happened!")
-        return result
 
     def handle_exception(self, request, exc_info):
         if not isinstance(exc_info, tuple):
@@ -73,5 +68,5 @@ class MiniSpider():
           (request.requestID, exc_info)
 
 if __name__ == "__main__":
-    ms = MiniSpider("spider.conf")
+    ms = MiniSpider("spider.conf",None)
     ms.run()
