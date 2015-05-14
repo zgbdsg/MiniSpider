@@ -6,7 +6,8 @@ import logging
 import threadpool
 import urllib2
 import time
-import random
+import chardet
+from bs4 import BeautifulSoup
 
 class MiniSpider():
 
@@ -23,13 +24,18 @@ class MiniSpider():
 
         urllib2.socket.setdefaulttimeout(float(self.conf_dic['spider']['crawl_timeout']))
         #self.seed = seed
-        self.seed = ["http://pycm.baidu.com:8081"]*1000
+        self.seeds = ["http://pycm.baidu.com:8081"]*1000
+        self.urlpool = {}
+
+        relativepath = '/'
+        for seed in self.seeds:
+            self.urlpool[seed.strip('/')+relativepath] = 1
         logging.info("init")
 
     def run(self):
         #self.pool = Pool(processes=8)
         self.pool = threadpool.ThreadPool(int(self.conf_dic['spider']['thread_count']))
-        requests = threadpool.makeRequests(self.crawl, self.seed, self.print_result, self.handle_exception)
+        requests = threadpool.makeRequests(self.crawl, self.seeds, self.print_result, self.handle_exception)
 
         for req in requests:
             self.pool.putRequest(req)
@@ -50,9 +56,32 @@ class MiniSpider():
         time.sleep(int(self.conf_dic['spider']['crawl_interval']))
         page = urllib2.urlopen(url)
         chunk = page.read()
-        print page.info().getparam('charset')
+        # print page.info().getparam('charset')
         # print chunk
-        return chunk
+        self.processpage(chunk)
+        return True
+
+    def processpage(self, chunk):
+        encode = chardet.detect(chunk)['encoding']
+        if encode in ['ascii','utf-8']:
+            soup = BeautifulSoup(chunk)
+            links = soup.findAll("a")
+            for link in links:
+                url = link.get('href').strip('/')
+                if len(url.split('/')) > int(self.conf_dic['spider']['max_depth']):
+                    continue
+
+                if 'javascript:location.href' in url:
+                    url = url[len("javascript:location.href")+2:-2]
+
+                if url not in self.urlpool.keys():
+                    self.urlpool[url] = 1
+                    req = threadpool.WorkRequest(self.crawl,)
+                    print(url)
+            #print(links)
+            print 1
+        elif encode in ['gbk']:
+            print 2
 
     # this will be called each time a result is available
     def print_result(self, request, result):
