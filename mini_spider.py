@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-__author__ = 'zhouguobing'
+__author__ = 'zhouguobing@baidu.com'
 import ConfigParser
 import url
 import log
@@ -118,10 +118,8 @@ class MiniSpider():
 
     def savepage(self, url, chuck):
         name = urllib2.quote(url.link)
-        name.replace("/","_")
-        name.replace("”,*,?,<,>,|")
-        print name
-        f = open("output/"+name,"w")
+        result, number = re.subn(re.compile('["\\/*?<>|]'), "", name)
+        f = open("output/"+result,"wb")
         f.write(chuck)
         f.flush()
         f.close()
